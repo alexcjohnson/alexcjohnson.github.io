@@ -1,0 +1,105 @@
+body {
+    background-color: #eee;
+}
+
+.fieldcell {
+    width: 30px;
+    height: 30px;
+    color: #444;
+    background-color: #ccc;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.fieldcell>div {
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    vertical-align: middle;
+    box-sizing: border-box;
+    line-height: 30px;
+    font-family: monospace;
+    font-size: 24px;
+}
+
+.fieldcell-unseen, .fieldcell-mark {
+    border: 3px outset;
+}
+
+.fieldcell-1 { color: #00f; }
+.fieldcell-2 { color: #080; }
+.fieldcell-3 { color: #c00; }
+.fieldcell-4 { color: #008; }
+.fieldcell-5 { color: #600; }
+.fieldcell-6 { color: #068; }
+.fieldcell-7 { color: #000; }
+.fieldcell-8 { color: #888; }
+
+.fieldrow {
+    clear: both;
+    height: 30px;
+}
+
+.fieldgrid {
+    clear: both;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mines-control {
+    clear: both;
+    float: left;
+}
+
+.mines-control input[type="text"] {
+    width: 100px;
+}
+
+.mines-control>span {
+    width: 80px;
+    display: inline-block;
+    margin: 5px 10px;
+}
+
+.mines-controls {
+    background-color: #ddd;
+    position: fixed;
+    font-family: sans-serif;
+    border: 3px outset;
+}
+
+.mines-controls-col {
+    float: left;
+    height: 100%;
+    margin: 20px;
+}
+
+.mines-counter, .mines-timer {
+    font-family: monospace;
+    color: #f00;
+    background-color: #000;
+    padding: 5px;
+    margin: 5px;
+    width: 80px;
+}
+
+.mines-info>.mines-status, .mines-info>.mines-show-setup {
+    border: 3px outset;
+    padding: 2px;
+    width: 30px;
+}
+
+.mines-info>div {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 5px;
+    padding: 5px;
+    text-align: center;
+    height: 30px;
+}
+
+.mines-info {
+    clear: both;
+    font-size: 24px;
+    height: 50px;
+}

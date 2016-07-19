@@ -1,0 +1,30 @@
+# ignore all auto-generated files
+*.pyc
+*~
+*.py#
+*.html#
+*.css#
+*.js#
+*.swp
+*.fuse_hidden*
+*.idea*
+.DS_Store
+._*
+.apdisk
+
+# PROGRAM OUTPUT
+.temp*
+*.orig
+*.remote.*
+*.BASE.*
+*.REMOTE.*
+*.BACKUP.*
+*.LOCAL.*
+*.scssc
+
+# ASSETS
+node_modules
+
+# TEST DIRECTORIES, contain generated files
+.coverage
+htmlcov
