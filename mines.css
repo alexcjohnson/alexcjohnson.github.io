@@ -74,6 +74,15 @@ body {
     margin: 20px;
 }
 
+.mines-algo {
+    clear: left;
+    margin: 0 20px 20px 40px;
+}
+
+.mines-algo>span {
+    margin-right: 10px;
+}
+
 .mines-counter, .mines-timer {
     font-family: monospace;
     color: #f00;

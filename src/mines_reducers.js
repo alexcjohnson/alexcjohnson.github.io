@@ -35,7 +35,8 @@ function newMineField(rows, columns, mines) {
 const dfltGame = new Immutable.Map({
     rows: 10,
     columns: 10,
-    mines: 10
+    mines: 10,
+    algo: 0
 });
 
 function newGameReducer(state = dfltGame, action) {
@@ -53,6 +54,9 @@ function newGameReducer(state = dfltGame, action) {
         if (typeof action.mines !== 'undefined') {
             newState = newState.set('mines',
                 Number(action.mines) || action.mines);
+        }
+        if (typeof action.algo !== 'undefined') {
+            newState = newState.set('algo', action.algo);
         }
         return newState;
     case 'VALIDATE_NEWGAME':
@@ -105,9 +109,122 @@ function timeReducer(state = 0, action) {
     }
 }
 
+function revealField(state, row, column) {
+    return state.map((rowi, i) => {
+        return rowi.map((spotj, j) => {
+            if (spotj.get('mine')) {
+                if (i === row && j === column) {
+                    return spotj.set('seen', 'boom');
+                }
+                return spotj.set('seen', 'mine');
+            }
+            if (spotj.get('seen') === 'mark') {
+                return spotj.set('seen', 'badmark');
+            }
+            return spotj;
+        });
+    });
+}
+
+const spotIsMarked = spot => spot.get('seen') === 'mark';
+const spotIsMine = spot => spot.get('mine');
+const spotIsUnseen = spot => spot.get('seen') === 'unseen';
+
+const iterNeighbors = (state, row, column, func) => {
+    const minRow = Math.max(0, row - 1);
+    const maxRow = Math.min(state.size, row + 2);
+    const minCol = Math.max(0, column - 1);
+    const maxCol = Math.min(state.get(0).size, column + 2);
+
+    const inc = (i, j) => ((i === row) && (j + 1 === column) ? 2 : 1);
+
+    for (let i = minRow; i < maxRow; i++) {
+        const thisRow = state.get(i);
+        for (let j = minCol; j < maxCol; j += inc(i, j)) {
+            func(i, j, thisRow.get(j));
+        }
+    }
+};
+
+const getCount = test => (state, row, column) => {
+    let cnt = 0;
+    iterNeighbors(state, row, column, (i, j, spot) => {
+        cnt += test(spot) ? 1 : 0;
+    });
+    return cnt;
+};
+
+const getMarkCount = getCount(spotIsMarked);
+const getNeighborCount = getCount(spotIsMine);
+const getUnseenCount = getCount(spotIsUnseen);
+
+function markAllUnseen(state, row, column, algo) {
+    let newState = state;
+    iterNeighbors(state, row, column, (i, j) => {
+        const spot = newState.get(i).get(j);
+        if (spotIsUnseen(spot)) {
+            newState = fieldReducer(
+                newState,
+                {type: 'MARK', row: i, column: j, algo}
+            );
+        }
+    });
+    return newState;
+}
+
+function checkForComplete(state, row, column, algo) {
+    let newState = state;
+    const markCount = getMarkCount(newState, row, column);
+    const thisRow = newState.get(row);
+    const spot = thisRow.get(column);
+    const thisCount = Number(spot.get('seen'));
+    if (isNaN(thisCount)) {
+        return state;
+    }
+    const unseenCount = getUnseenCount(newState, row, column);
+    if (unseenCount) {
+        if (markCount === thisCount) {
+            // unshow and reshow
+            newState = newState.set(
+                row,
+                thisRow.set(column, spot.set('seen', 'unseen'))
+            );
+            newState = fieldReducer(
+                newState,
+                {type: 'SHOW', row, column, algo}
+            );
+        }
+        else if (markCount + unseenCount === thisCount) {
+            newState = markAllUnseen(newState, row, column, algo);
+        }
+    }
+    return newState;
+}
+
+function checkForCompletedNeighbors(state, row, column, algo) {
+    let newState = state;
+    iterNeighbors(state, row, column, (i, j) => {
+        newState = checkForComplete(newState, i, j, algo);
+    });
+    // finally, check this cell itself!
+    return checkForComplete(newState, row, column, algo);
+}
+
+function revealNeighbors(state, row, column, algo) {
+    let newState = state;
+    iterNeighbors(state, row, column, (i, j) => {
+        if (spotIsUnseen(newState.get(i).get(j))) {
+            newState = fieldReducer(newState,
+                {type: 'SHOW', row: i, column: j, algo}
+            );
+        }
+    });
+    return newState;
+}
+
 function fieldReducer(state = Immutable.List(), action) {
-    var {type, row, column} = action,
-        rowList, spot, newSpot;
+    const {type, row, column, algo} = action;
+    let rowList, spot, newSpot, newState;
     switch (type) {
     case 'MARK':
         rowList = state.get(row);
@@ -120,60 +237,40 @@ function fieldReducer(state = Immutable.List(), action) {
         }
         else { return state; }
 
-        return state.set(row, rowList.set(column, newSpot));
+        newState = state.set(row, rowList.set(column, newSpot));
+
+        // did we mark enough to finish any of the neighbors?
+        if (algo) {
+            newState = checkForCompletedNeighbors(newState, row, column, algo);
+        }
+
+        return newState;
     case 'SHOW':
         rowList = state.get(row);
         spot = rowList.get(column);
         if (spot.get('seen') === 'unseen') {
             if (spot.get('mine')) {
                 // BOOM! Reveal all mines
-                return state.map((rowi, i) => {
-                    return rowi.map((spotj, j) => {
-                        if (spotj.get('mine')) {
-                            if (i === row && j === column) {
-                                return spotj.set('seen', 'boom');
-                            }
-                            return spotj.set('seen', 'mine');
-                        }
-                        if (spotj.get('seen') === 'mark') {
-                            return spotj.set('seen', 'badmark');
-                        }
-                        return spotj;
-                    });
-                });
+                return revealField(state, row, column);
             }
 
             // Whew! Calculate neighbor count.
-            var minRow = Math.max(0, row - 1),
-                maxRow = Math.min(state.size, row + 2),
-                minCol = Math.max(0, column - 1),
-                maxCol = Math.min(state.get(0).size, column + 2),
-                neighborCount = 0,
-                i,
-                j,
-                thisRow;
-            for (i = minRow; i < maxRow; i++) {
-                thisRow = state.get(i);
-                for (j = minCol; j < maxCol; j++) {
-                    if (thisRow.get(j).get('mine')) {
-                        neighborCount += 1;
-                    }
-                }
-            }
+            const neighborCount = getNeighborCount(state, row, column);
+            const neighborMarkCount = getMarkCount(state, row, column);
 
             newSpot = spot.set('seen', String(neighborCount));
-            var newState = state.set(row, rowList.set(column, newSpot));
+            newState = state.set(row, rowList.set(column, newSpot));
 
-            if (neighborCount === 0) {
-                // reveal all hidden neighbors recursively
-                for (i = minRow; i < maxRow; i++) {
-                    for (j = minCol; j < maxCol; j++) {
-                        if (newState.get(i).get(j).get('seen') === 'unseen') {
-                            newState = fieldReducer(newState,
-                                {type: 'SHOW', row: i, column: j});
-                        }
-                    }
-                }
+            if (neighborCount === 0 ||
+                (algo && (neighborMarkCount === neighborCount))
+            ) {
+                newState = revealNeighbors(newState, row, column, algo);
+                newState = checkForCompletedNeighbors(
+                    newState,
+                    row,
+                    column,
+                    algo
+                );
             }
 
             return newState;
@@ -187,15 +284,28 @@ function fieldReducer(state = Immutable.List(), action) {
 // sometimes we have interactions between the parts of our state.
 // does this mean I designed it wrong?
 function interactionReducer(state, action) {
+    let newState = state;
     switch (action.type) {
+    case 'MARK':
+        var marks = 0;
+        state.field.forEach(row => {
+            row.forEach(cell => {
+                if (cell.get('seen') === 'mark') {
+                    marks += 1;
+                }
+            });
+        });
+        newState = Object.assign({}, state, {minesLeft: state.mines - marks});
+    /* eslint-disable no-fallthrough */
     case 'SHOW':
+    /* eslint-enable no-fallthrough */
         // check if we need to change status
         // to 'won' or 'lost'
         var unseen = 0,
             lost = false,
             mines = state.mines;
 
-        state.field.forEach(row => {
+        newState.field.forEach(row => {
             row.forEach(cell => {
                 switch (cell.get('seen')) {
                 case 'unseen':
@@ -213,23 +323,12 @@ function interactionReducer(state, action) {
         });
 
         if (lost) {
-            return Object.assign({}, state, {status: 'lost'});
+            return Object.assign({}, newState, {status: 'lost'});
         }
-        console.log(unseen, mines);
         if (unseen === mines) {
-            return Object.assign({}, state, {status: 'won'});
+            return Object.assign({}, newState, {status: 'won'});
         }
-        return state;
-    case 'MARK':
-        var marks = 0;
-        state.field.forEach(row => {
-            row.forEach(cell => {
-                if (cell.get('seen') === 'mark') {
-                    marks += 1;
-                }
-            });
-        });
-        return Object.assign({}, state, {minesLeft: state.mines - marks});
+        return newState;
     case 'NEW_MINES':
         var newGame = state.newGame;
         var rows = newGame.get('rows');

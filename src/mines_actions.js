@@ -1,9 +1,10 @@
-export const setNewGame = ({rows, columns, mines}) => {
+export const setNewGame = ({rows, columns, mines, algo}) => {
     return {
         type: 'SET_NEWGAME',
         rows,
         columns,
-        mines
+        mines,
+        algo
     };
 };
 
@@ -23,19 +24,21 @@ export const newMines = () => {
     return {type: 'NEW_MINES'};
 };
 
-export const showCell = (rowNumber, columnNumber) => {
+export const showCell = (rowNumber, columnNumber, algo) => {
     return {
         type: 'SHOW',
         row: rowNumber,
-        column: columnNumber
+        column: columnNumber,
+        algo
     };
 };
 
-export const markCell = (rowNumber, columnNumber) => {
+export const markCell = (rowNumber, columnNumber, algo) => {
     return {
         type: 'MARK',
         row: rowNumber,
-        column: columnNumber
+        column: columnNumber,
+        algo
     };
 };
 

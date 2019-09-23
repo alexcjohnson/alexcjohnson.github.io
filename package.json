@@ -4,7 +4,9 @@
   "description": "Alex's fiddling",
   "private": true,
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+      "build": "webpack --mode development"
+  },
   "keywords": [
     "plotly"
   ],

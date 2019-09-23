@@ -16,12 +16,12 @@ import {
 
 class Cell extends Component {
     render() {
-        var {cls, content, onClick, onContextMenu} = this.props;
+        const {cls, content, onClick, onContextMenu, algo} = this.props;
         return <div className="fieldcell">
             <div
                 className={cls}
-                onClick={onClick}
-                onContextMenu={onContextMenu}
+                onClick={onClick(algo)}
+                onContextMenu={onContextMenu(algo)}
             >
                 {content}
             </div>
@@ -33,7 +33,8 @@ Cell.propTypes = {
     cls: PropTypes.string,
     content: PropTypes.string,
     onClick: PropTypes.func,
-    onContextMenu: PropTypes.func
+    onContextMenu: PropTypes.func,
+    algo: PropTypes.number
 };
 
 const fieldContent = {
@@ -46,24 +47,26 @@ const fieldContent = {
 };
 
 const cellStateToProps = (state, ownProps) => {
-    var seen = state.field
+    const seen = state.field
             .get(ownProps.rowNumber)
             .get(ownProps.columnNumber)
             .get('seen');
+    const algo = state.newGame.get('algo');
     return {
         cls: 'fieldcell-' + seen,
-        content: fieldContent[seen] || seen
+        content: fieldContent[seen] || seen,
+        algo: algo
     };
 };
 
 const cellDispatchToProps = (dispatch, ownProps) => {
-    var {rowNumber, columnNumber} = ownProps;
+    const {rowNumber, columnNumber} = ownProps;
     return {
-        onClick: () => {
-            dispatch(showCell(rowNumber, columnNumber));
+        onClick: algo => () => {
+            dispatch(showCell(rowNumber, columnNumber, algo));
         },
-        onContextMenu: (event) => {
-            dispatch(markCell(rowNumber, columnNumber));
+        onContextMenu: algo => (event) => {
+            dispatch(markCell(rowNumber, columnNumber, algo));
             event.preventDefault();
         }
     };
@@ -74,8 +77,8 @@ const FieldCell = connect(cellStateToProps, cellDispatchToProps)(Cell);
 
 class Row extends Component {
     render() {
-        var {row, rowNumber} = this.props;
-        var cells = row.map((cell, columnNumber) => {
+        const {row, rowNumber} = this.props;
+        const cells = row.map((cell, columnNumber) => {
             return <FieldCell
                 rowNumber={rowNumber}
                 columnNumber={columnNumber}
@@ -102,8 +105,8 @@ const FieldRow = connect(rowStateToProps)(Row);
 
 class Grid extends Component {
     render() {
-        var {field} = this.props;
-        var rows = field.map((row, rowNumber) => {
+        const {field} = this.props;
+        const rows = field.map((row, rowNumber) => {
             return <FieldRow rowNumber={rowNumber} key={rowNumber} />;
         });
         return <div className="fieldgrid">{rows}</div>;
@@ -128,7 +131,7 @@ const FieldGrid = connect(gridStateToProps)(Grid);
 class Input extends Component {
     render() {
         let i;
-        var {title, value, changeValue, doUpdate} = this.props;
+        const {title, value, changeValue, doUpdate} = this.props;
         return <div className="mines-control">
             <span>{title}</span>
             <input type="text"
@@ -149,15 +152,15 @@ Input.propTypes = {
 };
 
 const inputStateToProps = (state, ownProps) => {
-    var itemName = ownProps.item;
-    var title = itemName.charAt(0).toUpperCase() + itemName.substr(1);
-    var value = String(state.newGame.get(itemName));
+    const itemName = ownProps.item;
+    const title = itemName.charAt(0).toUpperCase() + itemName.substr(1);
+    const value = String(state.newGame.get(itemName));
 
     return {title, value};
 };
 
 const inputDispatchToProps = (dispatch, ownProps) => {
-    var itemName = ownProps.item;
+    const itemName = ownProps.item;
     return {
         changeValue: (value) => {
             dispatch(setNewGame({[itemName]: value}));
@@ -174,7 +177,7 @@ const NewGameInput = connect(inputStateToProps, inputDispatchToProps)(Input);
 
 class Preset extends Component {
     render() {
-        var {checked, title, choosePreset} = this.props;
+        const {checked, title, choosePreset} = this.props;
         return <div className="mines-control">
             <input type="radio" checked={checked} onChange={choosePreset} />
             <span>{title}</span>
@@ -189,11 +192,11 @@ Preset.propTypes = {
 };
 
 const presetStateToProps = (state, ownProps) => {
-    var newGame = state.newGame;
-    var newRows = newGame.get('rows');
-    var newColumns = newGame.get('columns');
-    var newNumMines = newGame.get('mines');
-    var {rows, columns, mines} = ownProps;
+    const {newGame} = state;
+    const newRows = newGame.get('rows');
+    const newColumns = newGame.get('columns');
+    const newNumMines = newGame.get('mines');
+    const {rows, columns, mines} = ownProps;
 
     return {
         checked: (rows === newRows) &&
@@ -213,6 +216,42 @@ const presetDispatchToProps = (dispatch, ownProps) => {
 
 const NewGamePreset =
     connect(presetStateToProps, presetDispatchToProps)(Preset);
+
+class UnconnectedAlgo extends Component {
+    render() {
+        const {algo, chooseAlgo} = this.props;
+        return <div className="mines-algo">
+            <span>Algorithm:</span>
+            <input type="radio" checked={!algo} onChange={chooseAlgo(0)} />
+            <span>Normal</span>
+            <input type="radio" checked={algo === 1} onChange={chooseAlgo(1)} />
+            <span>Helpful</span>
+        </div>;
+    }
+}
+
+UnconnectedAlgo.propTypes = {
+    algo: PropTypes.number,
+    chooseAlgo: PropTypes.func
+};
+
+const algoStateToProps = (state) => {
+    const {newGame} = state;
+    return {algo: newGame.get('algo')};
+};
+
+const algoDispatchToProps = (dispatch) => {
+    return {
+        chooseAlgo: (val) => {
+            return () => {
+                dispatch(setNewGame({algo: val}));
+                dispatch(newMines());
+            };
+        }
+    };
+};
+
+const Algo = connect(algoStateToProps, algoDispatchToProps)(UnconnectedAlgo);
 
 class Controls extends Component {
     render() {
@@ -234,6 +273,7 @@ class Controls extends Component {
                         rows={16} columns={30} mines={99}
                     />
                 </div>
+                <Algo />
             </div>;
         }
         return <div />;
@@ -257,7 +297,7 @@ const MinesControls = connect(controlsStateToProps)(Controls);
 
 class ShowSetup extends Component {
     render() {
-        var {isDisabled, onClick, content} = this.props;
+        const {isDisabled, onClick, content} = this.props;
         return <div className="mines-show-setup"
             disabled={isDisabled}
             onClick={isDisabled ? null : onClick}
@@ -313,7 +353,7 @@ const MinesCounter = connect(counterStateToProps)(Counter);
 
 class StatusButton extends Component {
     render() {
-        var {onClick, content} = this.props;
+        const {onClick, content} = this.props;
         return <div className="mines-status" onClick={onClick}>
             {content}
         </div>;
@@ -355,7 +395,7 @@ let timerInterval = null;
 
 class Timer extends Component {
     render() {
-        var {isRunning, time, ticker} = this.props;
+        const {isRunning, time, ticker} = this.props;
         if (isRunning && (timerInterval === null)) {
             timerInterval = setInterval(ticker, 1000);
         }
