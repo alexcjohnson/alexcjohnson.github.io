@@ -265,12 +265,14 @@ function fieldReducer(state = Immutable.List(), action) {
                 (algo && (neighborMarkCount === neighborCount))
             ) {
                 newState = revealNeighbors(newState, row, column, algo);
-                newState = checkForCompletedNeighbors(
-                    newState,
-                    row,
-                    column,
-                    algo
-                );
+                if (algo) {
+                    newState = checkForCompletedNeighbors(
+                        newState,
+                        row,
+                        column,
+                        algo
+                    );
+                }
             }
 
             return newState;
